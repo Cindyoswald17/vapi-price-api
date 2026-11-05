@@ -1,7 +1,8 @@
 // vAPI Price API — gratis, x402 v2, USDC di Base
 // Endpoint berbayar: GET /price?symbol=BTC  -> $0.01 per call
 // Payout wallet (Geral, owner vAPI): 0x954089b82ce0fd89f2bc46bdf43ca81de693fb4c
-// USDC Base: 0x833589fCD6eDb6E08f4c7C32D4f71b54bd029029 (6 desimal, $0.01 = 10000)
+// USDC Base (canonical, Circle): 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913 (6 desimal, $0.01 = 10000)
+// Perbaikan 2026-11-05: alamat lama ...bd029029 BUKAN USDC kanonis - vAPI menolaknya (non_usdc_asset).
 // Facilitator publik x402 (gratis, tanpa API key): https://x402.org/facilitator
 // Jalankan: npm install && npm start   (PORT default 3000)
 const express = require("express");
@@ -10,7 +11,8 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 const PAY_TO = "0x954089b82ce0fd89f2bc46bdf43ca81de693fb4c";
-const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bd029029";
+const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+const NETWORK = "eip155:8453"; // Base mainnet, format CAIP-2 x402 v2
 const PRICE_USD = "0.01";
 const AMOUNT = "10000"; // 0.01 USDC, 6 desimal
 const FACILITATOR = "https://x402.org/facilitator";
@@ -24,6 +26,21 @@ function baseUrl(req) {
   return `${req.protocol}://${req.get("host")}`;
 }
 
+const BAZAAR = {
+  discoverable: true,
+  description: "Returns the USD price for one crypto symbol. Takes symbol, e.g. BTC. For historical prices, use a historical price API instead.",
+  inputSchema: {
+    type: "object",
+    properties: { symbol: { type: "string", description: "Crypto symbol, e.g. BTC, ETH, SOL", enum: ["BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA", "USDT", "USDC"] } },
+    required: ["symbol"],
+  },
+  outputSchema: {
+    type: "object",
+    properties: { symbol: { type: "string" }, price_usd: { type: "number" }, source: { type: "string" } },
+    required: ["symbol", "price_usd"],
+  },
+};
+
 function x402Offer(req) {
   const resource = `${baseUrl(req)}${req.originalUrl}`;
   return {
@@ -32,7 +49,7 @@ function x402Offer(req) {
     accepts: [
       {
         scheme: "exact",
-        network: "base",
+        network: NETWORK,
         amount: AMOUNT,
         asset: USDC_BASE,
         payTo: PAY_TO,
@@ -42,8 +59,10 @@ function x402Offer(req) {
           version: "2",
           description: "Crypto price for one symbol. Takes symbol, e.g. BTC. For historical prices, use a historical price API instead.",
         },
+        extensions: { bazaar: BAZAAR },
       },
     ],
+    extensions: { bazaar: BAZAAR },
     resource,
   };
 }
@@ -80,7 +99,7 @@ app.get("/openapi.json", (req, res) => {
         get: {
           summary: "Get crypto price in USD",
           operationId: "getPrice",
-          "x-payment-info": { price: PRICE_USD, network: "base", asset: USDC_BASE, payTo: PAY_TO },
+          "x-payment-info": { price: PRICE_USD, network: NETWORK, asset: USDC_BASE, payTo: PAY_TO },
           parameters: [
             { name: "symbol", in: "query", required: true, schema: { type: "string", enum: Object.keys(SYMBOLS) }, example: "BTC" },
           ],
@@ -102,7 +121,7 @@ app.get("/.well-known/x402", (req, res) => {
   res.json({
     x402Version: 2,
     baseUrl: baseUrl(req),
-    endpoints: [{ path: "/price", method: "GET", price: PRICE_USD, network: "base", asset: USDC_BASE, payTo: PAY_TO }],
+    endpoints: [{ path: "/price", method: "GET", price: PRICE_USD, network: NETWORK, asset: USDC_BASE, payTo: PAY_TO }],
     openapi: "/openapi.json",
   });
 });

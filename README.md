@@ -30,7 +30,7 @@ Lalu di browser / CMD lain:
 
 curl http://localhost:3000/price?symbol=BTC
 
-Harus menjawab **402** dengan `x402Version: 2`, `network: base`, `asset` USDC Base, `payTo` wallet di atas, `amount: 10000`.
+Harus menjawab **402** dengan `x402Version: 2`, `network: eip155:8453`, `asset` USDC Base, `payTo` wallet di atas, `amount: 10000`.
 
 Cek juga dengan vAPI CLI (gratis, tanpa bayar):
 
