@@ -8,6 +8,16 @@
 const express = require("express");
 const app = express();
 app.use(express.json());
+// CORS: vAPI console membayar dari browser, jadi browser harus diizinkan
+// memanggil API ini (tanpa ini, vAPI menolak "does not accept payments from a browser").
+app.use((req, res, next) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, X-PAYMENT, PAYMENT-SIGNATURE, X-Payment, Payment-Signature");
+  res.set("Access-Control-Expose-Headers", "PAYMENT-REQUIRED, X-PAYMENT-RESPONSE, Payment-Required, X-Payment-Response");
+  if (req.method === "OPTIONS") return res.status(204).end();
+  next();
+});
 
 const PORT = process.env.PORT || 3000;
 const PAY_TO = "0x954089b82ce0fd89f2bc46bdf43ca81de693fb4c";
