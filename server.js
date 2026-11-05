@@ -159,4 +159,7 @@ app.get("/price", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(`vAPI Price API listening on :${PORT} — GET /price?symbol=BTC ($0.01, USDC Base, payTo ${PAY_TO})`));
+module.exports = app;
+if (require.main === module) {
+  app.listen(PORT, () => console.log(`vAPI Price API listening on :${PORT} — GET /price?symbol=BTC ($0.01, USDC Base, payTo ${PAY_TO})`));
+}
