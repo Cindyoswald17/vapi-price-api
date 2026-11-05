@@ -1,0 +1,1 @@
+{"dependencies":{"express":"^4.19.2"},"description":"API harga crypto gratis dengan pembayaran x402 v2 (USDC di Base) untuk listing di vAPI Call. Payout ke 0x954089b82ce0fd89f2bc46bdf43ca81de693fb4c.","engines":{"node":">=18"},"license":"MIT","main":"server.js","name":"vapi-price-api","scripts":{"start":"node server.js"},"type":"commonjs","version":"1.0.0"}
