@@ -3,7 +3,7 @@
 // Payout wallet (Geral, owner vAPI): 0x954089b82ce0fd89f2bc46bdf43ca81de693fb4c
 // USDC Base (canonical, Circle): 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913 (6 desimal, $0.01 = 10000)
 // Perbaikan 2026-11-05: alamat lama ...bd029029 BUKAN USDC kanonis - vAPI menolaknya (non_usdc_asset).
-// Facilitator publik x402 (gratis, tanpa API key): https://x402.org/facilitator
+// Facilitator publik x402 (gratis, tanpa API key): https://facilitator.payai.network (PayAI, v2 Base mainnet)
 // Jalankan: npm install && npm start   (PORT default 3000)
 const express = require("express");
 const app = express();
@@ -25,7 +25,7 @@ const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 const NETWORK = "eip155:8453"; // Base mainnet, format CAIP-2 x402 v2
 const PRICE_USD = "0.01";
 const AMOUNT = "10000"; // 0.01 USDC, 6 desimal
-const FACILITATOR = "https://x402.org/facilitator";
+const FACILITATOR = "https://facilitator.payai.network"; // PayAI: dukung v2 exact eip155:8453 (Base mainnet). x402.org HANYA testnet Base Sepolia (eip155:84532), jadi verify/settle mainnet selalu gagal -> endpoint jawab 402 lagi setelah otorisasi ditandatangani.
 
 const SYMBOLS = {
   BTC: "bitcoin", ETH: "ethereum", SOL: "solana", BNB: "binancecoin",
