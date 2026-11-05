@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bayar OneSource $0,001 — vAPI paid call</title>
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+<style>body{font-family:system-ui,sans-serif;max-width:640px;margin:24px auto;padding:0 16px;line-height:1.5}button{padding:12px 18px;font-size:16px;cursor:pointer}pre{background:#f2f2f2;padding:12px;white-space:pre-wrap;word-break:break-all}#log{margin-top:16px}</style>
+</head>
+<body>
+<h1>Bayar OneSource — $0,001 USDC</h1>
+<p>API: <code>GET https://api.onesource.io/api/chain/block-number?network=ethereum</code><br>
+Harga: <b>1000 atomic USDC = $0,001</b> &middot; Network: Base (eip155:8453) &middot; Payee: <code>0x52E29e0d2Aa49bfBfC548C0A9F2196F4aa51f3ea</code><br>
+Wallet kamu yang tanda tangan: <code>0x954089b82ce0fd89f2bc46bdf43ca81de693fb4c</code>. Halaman ini <b>tidak menyimpan</b> apa pun dan tidak mengirim kunci apa pun ke mana pun — tanda tangan terjadi di wallet kamu sendiri.</p>
+<button id="btn">1. Connect wallet &amp; bayar $0,001</button>
+<div id="log"></div>
+<script>
+const API_URL = "https://api.onesource.io/api/chain/block-number?network=ethereum";
+const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+const PAYEE = "0x52E29e0d2Aa49bfBfC548C0A9F2196F4aa51f3ea";
+const AMOUNT = "1000";
+const logEl = document.getElementById("log");
+function log(msg){ logEl.innerHTML += "<pre>" + msg + "</pre>"; }
+function b64(obj){ return btoa(unescape(encodeURIComponent(JSON.stringify(obj)))); }
+
+document.getElementById("btn").onclick = async () => {
+  try {
+    // Binance Wallet kadang menyuntik provider sebagai window.BinanceChain, bukan window.ethereum.
+    const injected = window.ethereum || window.BinanceChain || window.bnbchain || (window.ethereum && window.ethereum.providers && window.ethereum.providers[0]);
+    if (!injected) {
+      log("Tidak ada wallet terdeteksi di browser ini (window.ethereum kosong).\n\nCara memperbaiki:\n1. Klik ikon Binance Wallet (kuning) di toolbar browser, buka kunci wallet.\n2. Di Binance Wallet, izinkan / hubungkan situs ini, lalu refresh halaman ini dan klik tombol lagi.\n3. Kalau masih kosong, buka link ini di Chrome dengan profil yang sama dengan saat kamu connect wallet di vAPI (profil yang ada ekstensi Binance Wallet-nya).");
+      return;
+    }
+    log("Provider wallet terdeteksi: " + (injected.isMetaMask ? "MetaMask" : (injected.isBinance ? "Binance Wallet" : "wallet extension")));
+    const provider = new ethers.BrowserProvider(injected);
+    await provider.send("eth_requestAccounts", []);
+    const signer = await provider.getSigner();
+    const from = await signer.getAddress();
+    log("Wallet terhubung: " + from);
+    const net = await provider.getNetwork();
+    if (Number(net.chainId) !== 8453) {
+      log("Pindah ke Base (chain 8453)...");
+      await provider.send("wallet_switchEthereumChain", [{ chainId: "0x2105" }]);
+    }
+    // Siapkan otorisasi dulu (nonce + validBefore) supaya bisa ditandatangani walau fetch gagal karena CORS.
+    const now0 = Math.floor(Date.now() / 1000);
+    const validAfter0 = 0, validBefore0 = now0 + 3600;
+    const nonce0 = ethers.hexlify(ethers.randomBytes(32));
+    window.__auth = { from, validAfter: validAfter0, validBefore: validBefore0, nonce: nonce0 };
+    log("Mengambil tagihan 402 dari OneSource...");
+    let first;
+    try { first = await fetch(API_URL, { method: "GET" }); }
+    catch (e) {
+      log("Fetch 402 gagal dari browser (kemungkinan CORS): " + e.message + "\n\nMODE TANDA TANGAN SAJA: klik tombol di bawah untuk tanda tangan otorisasi, lalu salin hasilnya dan kirim ke Muse — Muse yang akan mengirim pembayarannya dari server.");
+      const b = document.createElement("button");
+      b.textContent = "2. Tanda tangan saja ($0,001) — kirim hasilnya ke Muse";
+      b.onclick = async () => {
+        const domain = { name: "USD Coin", version: "2", chainId: 8453, verifyingContract: USDC };
+        const types = { TransferWithAuthorization: [
+          { name: "from", type: "address" }, { name: "to", type: "address" },
+          { name: "value", type: "uint256" }, { name: "validAfter", type: "uint256" },
+          { name: "validBefore", type: "uint256" }, { name: "nonce", type: "bytes32" } ] };
+        const message = { from, to: PAYEE, value: AMOUNT, validAfter: validAfter0, validBefore: validBefore0, nonce: nonce0 };
+        const sig = await signer.signTypedData(domain, types, message);
+        const out = JSON.stringify({ from, to: PAYEE, value: AMOUNT, validAfter: validAfter0, validBefore: validBefore0, nonce: nonce0, signature: sig }, null, 2);
+        log("SALIN SEMUA TEKS DI BAWAH INI DAN KIRIM KE MUSE:\n" + out);
+      };
+      document.body.appendChild(b);
+      return;
+    }
+    if (first.status !== 402) { log("Bukan 402, status: " + first.status + " — " + (await first.text()).slice(0, 500)); return; }
+    const prHeader = first.headers.get("Payment-Required") || first.headers.get("PAYMENT-REQUIRED");
+    if (!prHeader) { log("Header Payment-Required tidak ditemukan."); return; }
+    const req402 = JSON.parse(atob(prHeader));
+    const accept = req402.accepts.find(a => a.scheme === "exact" && a.network === "eip155:8453");
+    if (!accept) { log("Tidak ada accepts exact eip155:8453."); return; }
+    log("Tagihan: " + accept.amount + " atomic USDC ke " + accept.payTo + " (maxTimeout " + accept.maxTimeoutSeconds + " dtk)");
+    if (accept.amount !== AMOUNT || accept.payTo.toLowerCase() !== PAYEE.toLowerCase()) { log("PERINGATAN: amount/payTo tidak sesuai yang diharapkan — dibatalkan."); return; }
+
+    const validAfter = window.__auth.validAfter;
+    const validBefore = window.__auth.validBefore;
+    const nonce = window.__auth.nonce;
+    const domain = { name: "USD Coin", version: "2", chainId: 8453, verifyingContract: USDC };
+    const types = { TransferWithAuthorization: [
+      { name: "from", type: "address" }, { name: "to", type: "address" },
+      { name: "value", type: "uint256" }, { name: "validAfter", type: "uint256" },
+      { name: "validBefore", type: "uint256" }, { name: "nonce", type: "bytes32" } ] };
+    const message = { from, to: PAYEE, value: AMOUNT, validAfter, validBefore, nonce };
+    log("Minta tanda tangan di wallet (EIP-3009 transferWithAuthorization, $0,001 USDC ke " + PAYEE + ")...");
+    const signature = await signer.signTypedData(domain, types, message);
+    log("Tanda tangan didapat. Mengirim pembayaran...");
+    const payload = { x402Version: 2, scheme: "exact", network: "eip155:8453",
+      payload: { signature, authorization: { from, to: PAYEE, value: AMOUNT, validAfter: validAfter.toString(), validBefore: validBefore.toString(), nonce } } };
+    const encoded = b64(payload);
+    const paid = await fetch(API_URL, { method: "GET", headers: { "PAYMENT-SIGNATURE": encoded, "X-PAYMENT": encoded } });
+    const body = await paid.text();
+    log("Status: HTTP " + paid.status);
+    log("Respons: " + body.slice(0, 2000));
+    const respHeader = paid.headers.get("X-PAYMENT-RESPONSE") || paid.headers.get("x-payment-response");
+    if (respHeader) { try { log("Bukti settle (X-PAYMENT-RESPONSE): " + atob(respHeader)); } catch(e){ log("X-PAYMENT-RESPONSE: " + respHeader); } }
+    if (paid.status === 200) log("SUKSES. Screenshot halaman ini dan kirim ke Muse — lalu cek halaman Tasks vAPI apakah quest 'Make your first paid Call' sudah centang.");
+    else log("Masih gagal (HTTP " + paid.status + "). Screenshot log ini dan kirim ke Muse.");
+  } catch (e) {
+    log("ERROR: " + (e && e.message ? e.message : e));
+  }
+};
+</script>
+</body>
+</html>

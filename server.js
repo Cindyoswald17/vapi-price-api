@@ -6,6 +6,7 @@
 // Facilitator publik x402 (gratis, tanpa API key): https://facilitator.payai.network (PayAI, v2 Base mainnet)
 // Jalankan: npm install && npm start   (PORT default 3000)
 const express = require("express");
+const path = require("path");
 const app = express();
 app.use(express.json());
 // CORS: vAPI console membayar dari browser, jadi browser harus diizinkan
@@ -108,6 +109,10 @@ function paymentRequiredHeader(offer) {
 }
 
 // ---- Halaman info (gratis, tanpa bayar) ----
+app.get("/pay", (req, res) => {
+  res.sendFile(path.join(__dirname, "pay.html"));
+});
+
 app.get("/", (req, res) => {
   res.json({
     name: "vAPI Price API",
