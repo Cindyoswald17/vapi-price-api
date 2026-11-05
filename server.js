@@ -145,7 +145,10 @@ app.get("/price", async (req, res) => {
   }
 
   // 1) Tanpa header pembayaran -> jawab 402 dengan penawaran x402 v2
-  const payment = req.header("X-PAYMENT") || req.header("x-payment");
+  // x402 v2 memakai header PAYMENT-SIGNATURE; v1 / beberapa client memakai X-PAYMENT.
+  // Server lama hanya membaca X-PAYMENT, jadi otorisasi dari vAPI (PAYMENT-SIGNATURE)
+  // tidak pernah terlihat -> server jawab 402 lagi setelah otorisasi ditandatangani.
+  const payment = req.header("X-PAYMENT") || req.header("PAYMENT-SIGNATURE") || req.header("X-PAYMENT-SIGNATURE");
   if (!payment) {
     const offer = x402Offer(req);
     res.set("PAYMENT-REQUIRED", paymentRequiredHeader(offer));
@@ -153,14 +156,22 @@ app.get("/price", async (req, res) => {
   }
 
   // 2) Ada pembayaran -> verifikasi ke facilitator publik
+  // Payload bisa berupa base64 JSON (standar) atau JSON mentah.
+  let paymentPayload;
+  try {
+    paymentPayload = JSON.parse(Buffer.from(payment, "base64").toString("utf8"));
+  } catch (_) {
+    paymentPayload = JSON.parse(payment);
+  }
   try {
     const offer = x402Offer(req);
     const verifyRes = await fetch(`${FACILITATOR}/verify`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ x402Version: 2, paymentPayload: JSON.parse(Buffer.from(payment, "base64").toString("utf8")), paymentRequirements: offer.accepts[0] }),
+      body: JSON.stringify({ x402Version: 2, paymentPayload, paymentRequirements: offer.accepts[0] }),
     });
     const verify = await verifyRes.json();
+    console.log("verify:", JSON.stringify(verify).slice(0, 500));
     if (!verify.isValid) {
       return res.status(402).json({ error: "Payment invalid", details: verify.invalidReason || verify });
     }
@@ -169,9 +180,10 @@ app.get("/price", async (req, res) => {
     const settleRes = await fetch(`${FACILITATOR}/settle`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ x402Version: 2, paymentPayload: JSON.parse(Buffer.from(payment, "base64").toString("utf8")), paymentRequirements: offer.accepts[0] }),
+      body: JSON.stringify({ x402Version: 2, paymentPayload, paymentRequirements: offer.accepts[0] }),
     });
     const settle = await settleRes.json();
+    console.log("settle:", JSON.stringify(settle).slice(0, 500));
     if (!settle.success) {
       return res.status(402).json({ error: "Payment settlement failed", details: settle });
     }
