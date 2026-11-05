@@ -89,7 +89,7 @@ function x402Offer(req) {
         amount: AMOUNT,
         asset: USDC_BASE,
         payTo: PAY_TO,
-        maxTimeoutSeconds: 60,
+        maxTimeoutSeconds: 600,
         extra: {
           name: "USD Coin",
           version: "2",
