@@ -39,6 +39,32 @@ function baseUrl(req) {
 const BAZAAR = {
   discoverable: true,
   description: "Returns the USD price for one crypto symbol. Takes symbol, e.g. BTC. For historical prices, use a historical price API instead.",
+  // PayAI verify menolak bazaar tanpa properti 'info' ("Extension 'bazaar' missing required 'info' property").
+  // Spec x402 Bazaar: info.input.type dan info.output.type wajib ada.
+  info: {
+    type: "http",
+    input: {
+      type: "http",
+      method: "GET",
+      description: "Crypto symbol, e.g. BTC, ETH, SOL",
+      example: { symbol: "BTC" },
+      schema: {
+        type: "object",
+        properties: { symbol: { type: "string", description: "Crypto symbol, e.g. BTC, ETH, SOL", enum: ["BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA", "USDT", "USDC"] } },
+        required: ["symbol"],
+      },
+    },
+    output: {
+      type: "http",
+      description: "USD price for the requested symbol",
+      example: { symbol: "BTC", price_usd: 100000, source: "CoinGecko" },
+      schema: {
+        type: "object",
+        properties: { symbol: { type: "string" }, price_usd: { type: "number" }, source: { type: "string" } },
+        required: ["symbol", "price_usd"],
+      },
+    },
+  },
   inputSchema: {
     type: "object",
     properties: { symbol: { type: "string", description: "Crypto symbol, e.g. BTC, ETH, SOL", enum: ["BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "ADA", "USDT", "USDC"] } },
